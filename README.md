@@ -12,7 +12,9 @@ This repo assumes video is taken from street sidewalk.
 
 ## Requirements
 
-Python verison: 2.7
+Environment
+- Linux: Ubuntu 16.04
+- Python: 2.7
 
 Dependencies:
 - Keras 2.2.4
