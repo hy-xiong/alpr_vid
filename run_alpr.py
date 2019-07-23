@@ -71,7 +71,7 @@ if __name__ == "__main__":
 		veh_ratio = 0.2
 		out_f_lprs = 'all_frames_lps'
 		out_dir = "tmp"
-		test_f = "samples/videos/VID_20190627_183421.mp4"
+		test_f = "samples/videos/VID_20190722_171037.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
@@ -100,15 +100,16 @@ if __name__ == "__main__":
 		vidcap.set(cv2.CAP_PROP_POS_FRAMES, fm)
 		ret, img = vidcap.read()
 		fm_img = "%s/%d.jpg" % (out_dir, t)
-		cv2.imwrite(fm_img, np.fliplr(np.swapaxes(img, 0, 1)))
-		lp_str = lpr(fm_img, veh_ratio, out_dir, vehicle_threshold,
-					 lp_threshold, ocr_threshold, vehicle_net,
-					 vehicle_meta, lp_net, ocr_net, ocr_meta)
-		fm_lps[t] = lp_str
+		if img is not None:
+			cv2.imwrite(fm_img, np.fliplr(np.swapaxes(img, 0, 1)))
+			lp_str = lpr(fm_img, veh_ratio, out_dir, vehicle_threshold,
+						 lp_threshold, ocr_threshold, vehicle_net,
+						 vehicle_meta, lp_net, ocr_net, ocr_meta)
+			fm_lps[t] = lp_str
+			print("%ds done, runtime: %.1fs, Plate: %s"
+				  % (t + t_step, time.time() - st, lp_str))
 		t += t_step
 		fm = int(t * fps)
-		print("%ds done, runtime: %.1fs, Plate: %s"
-			  % (t, time.time() - st, lp_str))
 	with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
 		wrt.write('\n'.join('%d,%s' % (k, s) for k, s, in sorted(
 			fm_lps.items(), key=lambda x: x[0])))

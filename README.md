@@ -54,7 +54,7 @@ and `out_f_lprs`
 ```shellscript
 $ start_time=0
 $ time_step=1
-$ $veh_bbox_ratio=0.2
+$ veh_bbox_ratio=0.2
 $ out_f="all_frames_lps"
 $ out_dir="tmp"
 $ test_f="samples/test.mp4"
