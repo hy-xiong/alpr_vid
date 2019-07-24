@@ -83,34 +83,35 @@ if __name__ == "__main__":
 		shutil.rmtree(out_dir)
 	os.makedirs(out_dir)
 	st_all = time.time()
-	# read video
-	vidcap = cv2.VideoCapture(test_f)
-	fps = int(round(vidcap.get(cv2.CAP_PROP_FPS)))
-	n_fps = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
-	fm = int(t * fps)
-	# set up network
-	vehicle_threshold = .5
-	lp_threshold = .5
-	ocr_threshold = .4
-	vehicle_net, vehicle_meta, lp_net, ocr_net, ocr_meta = loadnet()
-	# clip frame and detect license plate
-	fm_lps = {}
-	while fm <= n_fps:
-		st = time.time()
-		vidcap.set(cv2.CAP_PROP_POS_FRAMES, fm)
-		ret, img = vidcap.read()
-		fm_img = "%s/%d.jpg" % (out_dir, t)
-		if img is not None:
-			cv2.imwrite(fm_img, np.fliplr(np.swapaxes(img, 0, 1)))
-			lp_str = lpr(fm_img, veh_ratio, out_dir, vehicle_threshold,
-						 lp_threshold, ocr_threshold, vehicle_net,
-						 vehicle_meta, lp_net, ocr_net, ocr_meta)
-			fm_lps[t] = lp_str
-			print("%ds done, runtime: %.1fs, Plate: %s"
-				  % (t + t_step, time.time() - st, lp_str))
-		t += t_step
+	if os.path.exists(test_f):
+		# read video
+		vidcap = cv2.VideoCapture(test_f)
+		fps = int(round(vidcap.get(cv2.CAP_PROP_FPS)))
+		n_fps = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
 		fm = int(t * fps)
-	with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
-		wrt.write('\n'.join('%d,%s' % (k, s) for k, s, in sorted(
-			fm_lps.items(), key=lambda x: x[0])))
-	print("total runtime: %.1fs" % (time.time() - st_all))
+		# set up network
+		vehicle_threshold = .5
+		lp_threshold = .5
+		ocr_threshold = .4
+		vehicle_net, vehicle_meta, lp_net, ocr_net, ocr_meta = loadnet()
+		# clip frame and detect license plate
+		fm_lps = {}
+		while fm <= n_fps:
+			st = time.time()
+			vidcap.set(cv2.CAP_PROP_POS_FRAMES, fm)
+			ret, img = vidcap.read()
+			fm_img = "%s/%d.jpg" % (out_dir, t)
+			if img is not None:
+				cv2.imwrite(fm_img, np.fliplr(np.swapaxes(img, 0, 1)))
+				lp_str = lpr(fm_img, veh_ratio, out_dir, vehicle_threshold,
+							 lp_threshold, ocr_threshold, vehicle_net,
+							 vehicle_meta, lp_net, ocr_net, ocr_meta)
+				fm_lps[t] = lp_str
+				print("%ds done, runtime: %.1fs, Plate: %s"
+					  % (t + t_step, time.time() - st, lp_str))
+			t += t_step
+			fm = int(t * fps)
+		with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
+			wrt.write('\n'.join('%d,%s' % (k, s) for k, s, in sorted(
+				fm_lps.items(), key=lambda x: x[0])))
+		print("total runtime: %.1fs" % (time.time() - st_all))
