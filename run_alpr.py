@@ -40,23 +40,19 @@ def loadnet():
 
 
 @std_suppress(1)
-def lpr(p_img, veh_img_ratio, proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
+def lpr(p_img, veh_height_ratio, proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
 		veh_meta, lp_net, ocr_net, ocr_meta):
 	print "start dectection:"
 	st = time.time()
-	raw_size = cv2.imread(p_img)
-	raw_size = raw_size.shape[0] * raw_size.shape[1]
+	raw_height = cv2.imread(p_img).shape[0]
 	veh_imgs, _ = find_vehicle_one_img(
 		p_img, veh_net, veh_meta, proc_dir, veh_thd)
 	lp_str = ""
 	if veh_imgs:
-		img_sizes = []
-		for veh_img in veh_imgs:
-			img_size = cv2.imread(veh_img).shape[:2]
-			img_sizes.append(img_size[0] * img_size[1])
-		max_veh_size = max(img_sizes)
-		if max_veh_size * 1.0 / raw_size >= veh_img_ratio:
-			veh_img = veh_imgs[img_sizes.index(max_veh_size)]
+		img_heights = [cv2.imread(img).shape[0] for img in veh_imgs]
+		max_height = max(img_heights)
+		if max_height * 1.0 / raw_height >= veh_height_ratio:
+			veh_img = veh_imgs[img_heights.index(max_height)]
 			lp_img, _ = find_lp_one_img(veh_img, lp_net, proc_dir, lp_thd)
 			if lp_img:
 				lp_str = lp_ocr_one_img(lp_img, ocr_net, ocr_meta, ocr_thd)
@@ -64,21 +60,39 @@ def lpr(p_img, veh_img_ratio, proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
 	return lp_str
 
 
+def validate_lp(lp_s):
+	if len(lp_s) == 6 or len(lp_s) == 7:
+		n_digits = sum(c.isdigit() for c in lp_s)
+		if len(lp_s) == 7:
+			if (n_digits >= 4) and (n_digits != 6):
+				return lp_s
+		else:
+			if (n_digits >= 2) and (n_digits <= 5):
+				return lp_s
+	return ""
+
+
 if __name__ == "__main__":
 	if len(sys.argv) == 1:
 		t = 0
 		t_step = 1
-		veh_ratio = 0.2
+		landscape = 1
+		height_ratio = 0.2
+		focal_length = 4.44
+		sensor_height = 4.29
 		out_f_lprs = 'all_frames_lps'
 		out_dir = "tmp"
-		test_f = "samples/videos/VID_20190722_171037.mp4"
+		test_f = "test2.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
-		veh_ratio = float(sys.argv[3])
-		out_f_lprs = sys.argv[4]
-		out_dir = sys.argv[5]
-		test_f = sys.argv[6]
+		landscape = int(sys.argv[3])
+		height_ratio = float(sys.argv[4])
+		focal_length = float(sys.argv[5])
+		sensor_height = float(sys.argv[6])
+		out_f_lprs = sys.argv[7]
+		out_dir = sys.argv[8]
+		test_f = sys.argv[9]
 	if os.path.exists(out_dir):
 		shutil.rmtree(out_dir)
 	os.makedirs(out_dir)
@@ -102,10 +116,13 @@ if __name__ == "__main__":
 			ret, img = vidcap.read()
 			fm_img = "%s/%d.jpg" % (out_dir, t)
 			if img is not None:
-				cv2.imwrite(fm_img, np.fliplr(np.swapaxes(img, 0, 1)))
-				lp_str = lpr(fm_img, veh_ratio, out_dir, vehicle_threshold,
+				if not landscape:
+					img = np.fliplr(np.swapaxes(img, 0, 1))
+				cv2.imwrite(fm_img, img)
+				lp_str = lpr(fm_img, height_ratio, out_dir, vehicle_threshold,
 							 lp_threshold, ocr_threshold, vehicle_net,
 							 vehicle_meta, lp_net, ocr_net, ocr_meta)
+				lp_str = validate_lp(lp_str)
 				fm_lps[t] = lp_str
 				print("%ds done, runtime: %.1fs, Plate: %s"
 					  % (t + t_step, time.time() - st, lp_str))
