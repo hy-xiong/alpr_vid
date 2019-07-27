@@ -1,8 +1,10 @@
 /samples
 /data
 /tmp
+gps
 
 *.pyc
+*.csv
 
 .idea
 *.mp4

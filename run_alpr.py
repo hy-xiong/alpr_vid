@@ -40,7 +40,8 @@ def loadnet():
 
 
 @std_suppress(1)
-def lpr(p_img, veh_height_ratio, proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
+def lpr(p_img, veh_height_ratio, fl_len, sensor_h, veh_h,
+		proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
 		veh_meta, lp_net, ocr_net, ocr_meta):
 	print "start dectection:"
 	st = time.time()
@@ -48,16 +49,19 @@ def lpr(p_img, veh_height_ratio, proc_dir, veh_thd, lp_thd, ocr_thd, veh_net,
 	veh_imgs, _ = find_vehicle_one_img(
 		p_img, veh_net, veh_meta, proc_dir, veh_thd)
 	lp_str = ""
+	dist = -1.0
 	if veh_imgs:
 		img_heights = [cv2.imread(img).shape[0] for img in veh_imgs]
 		max_height = max(img_heights)
-		if max_height * 1.0 / raw_height >= veh_height_ratio:
+		max_ratio = max_height * 1.0 / raw_height
+		if max_ratio >= veh_height_ratio:
 			veh_img = veh_imgs[img_heights.index(max_height)]
+			dist = veh_h / (max_ratio * sensor_h) * fl_len / 1000.0
 			lp_img, _ = find_lp_one_img(veh_img, lp_net, proc_dir, lp_thd)
 			if lp_img:
 				lp_str = lp_ocr_one_img(lp_img, ocr_net, ocr_meta, ocr_thd)
 	print "1 image LPR runtime: %.1fs" % (time.time() - st)
-	return lp_str
+	return lp_str, dist
 
 
 def validate_lp(lp_s):
@@ -80,6 +84,7 @@ if __name__ == "__main__":
 		height_ratio = 0.2
 		focal_length = 4.44
 		sensor_height = 4.29
+		veh_height = 1600.0
 		out_f_lprs = 'all_frames_lps'
 		out_dir = "tmp"
 		test_f = "test2.mp4"
@@ -90,9 +95,10 @@ if __name__ == "__main__":
 		height_ratio = float(sys.argv[4])
 		focal_length = float(sys.argv[5])
 		sensor_height = float(sys.argv[6])
-		out_f_lprs = sys.argv[7]
-		out_dir = sys.argv[8]
-		test_f = sys.argv[9]
+		veh_height = float(sys.argv[7])
+		out_f_lprs = sys.argv[8]
+		out_dir = sys.argv[9]
+		test_f = sys.argv[10]
 	if os.path.exists(out_dir):
 		shutil.rmtree(out_dir)
 	os.makedirs(out_dir)
@@ -119,16 +125,19 @@ if __name__ == "__main__":
 				if not landscape:
 					img = np.fliplr(np.swapaxes(img, 0, 1))
 				cv2.imwrite(fm_img, img)
-				lp_str = lpr(fm_img, height_ratio, out_dir, vehicle_threshold,
-							 lp_threshold, ocr_threshold, vehicle_net,
-							 vehicle_meta, lp_net, ocr_net, ocr_meta)
+				lp_str, v_dist = lpr(fm_img, height_ratio, focal_length,
+									 sensor_height,
+									 veh_height, out_dir, vehicle_threshold,
+									 lp_threshold, ocr_threshold, vehicle_net,
+									 vehicle_meta, lp_net, ocr_net, ocr_meta)
 				lp_str = validate_lp(lp_str)
-				fm_lps[t] = lp_str
-				print("%ds done, runtime: %.1fs, Plate: %s"
-					  % (t + t_step, time.time() - st, lp_str))
+				fm_lps[t] = (lp_str, v_dist)
+				print("%ds done, runtime: %.1fs, Plate: %s, dist: %.4f"
+					  % (t + t_step, time.time() - st, lp_str, v_dist))
 			t += t_step
 			fm = int(t * fps)
 		with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
-			wrt.write('\n'.join('%d,%s' % (k, s) for k, s, in sorted(
-				fm_lps.items(), key=lambda x: x[0])))
+			wrt.write('\n'.join('%d,%s,%.4f' % (k, e[0], e[1])
+								for k, e, in sorted(fm_lps.items(),
+													key=lambda x: x[0])))
 		print("total runtime: %.1fs" % (time.time() - st_all))
