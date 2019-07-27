@@ -2,6 +2,7 @@
 /data
 /tmp
 gps
+test*
 
 *.pyc
 *.csv

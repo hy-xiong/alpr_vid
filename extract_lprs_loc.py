@@ -11,7 +11,8 @@ def extract_loc(t_array, gps_data):
     return pos
 
 
-def proc_detection(c_angle, same_veh_dist_thd, f_lpr, f_gps):
+def proc_detection(c_angle, view_extend_dist,
+                   same_veh_dist_thd, f_lpr, f_traj, f_gps):
     # get vehical location for each image
     WGS = Proj(init="epsg:4326")
     utm_11 = Proj(init="epsg:26911")
@@ -22,15 +23,25 @@ def proc_detection(c_angle, same_veh_dist_thd, f_lpr, f_gps):
     df_loc['x'] = xy.apply(lambda x: x[0])
     df_loc['y'] = xy.apply(lambda x: x[1])
     gps = df_loc[['x', 'y']].values
-    pos_intp = extract_loc(df['time'].values, gps)
+    ts = df['time'].values
+    pos_intp = extract_loc(ts, gps)
+    traj = np.apply_along_axis(lambda x: transform(utm_11, WGS, x[0], x[1]),
+                               1, pos_intp)
+    traj[:, [0, 1]] = traj[:, [1, 0]]
+    traj = np.append(traj, ts[:, np.newaxis], axis=1)
+    traj = pd.DataFrame(traj, columns=['lat', 'lon', 't_vid'])
+    traj.to_csv(f_traj, index=False)
     unit = pos_intp[-1] - pos_intp[0]
     unit = unit[:, np.newaxis]
     unit = unit / np.linalg.norm(unit)
     dist = df['dist'].values
     dist[dist == -1.0] = np.nan
+    dist += view_extend_dist
     th = np.radians(c_angle)
     rot_M = np.array([[np.cos(th), -np.sin(th)], [np.sin(th), np.cos(th)]])
     rot_unit = np.dot(rot_M, unit)
+    print("vehicle loc offset (m)")
+    print(np.dot(dist[:, np.newaxis], rot_unit.T))
     pos_car = np.dot(dist[:, np.newaxis], rot_unit.T) + pos_intp
     df_car = pd.DataFrame(pos_car, columns=['x', 'y'])
     # get veh lpr
@@ -40,11 +51,12 @@ def proc_detection(c_angle, same_veh_dist_thd, f_lpr, f_gps):
     df = df[~df['license'].isna()]
     df['shift_diff'] = (df['xy_shift'] - df['xy_shift'].shift()).abs()
     df['new_car'] = df['shift_diff'] >= same_veh_dist_thd
-    df.loc[0, 'new_car'] = True
+    df.iloc[0, 7] = True
     dup = df[df['new_car']]['license'].duplicated()
     dup_index = dup[dup].index
     df.loc[dup_index, 'new_car'] = False
     df['car_flag'] = df['new_car'].cumsum()
+    print df
     gp = df.groupby(['car_flag'])
     result = gp['time'].agg(['first', 'last'])
     result['plate'] = gp['license'].agg(lambda x: x.value_counts().index[0])
@@ -60,17 +72,22 @@ def proc_detection(c_angle, same_veh_dist_thd, f_lpr, f_gps):
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        camera_angle = 45
+        camera_angle = 360 - 60
+        view_dist_ext = 1
         dist_thd = 0.5
         f_lprs = 'tmp/all_frames_lps'
-        f_gps = 'gps'
-        out_f = 'test2.csv'
+        f_gps = 'test7.gps'
+        lpr_out_f = 'test7.lpr'
+        traj_out_f = 'test7.traj'
     else:
         camera_angle = int(sys.argv[1])
-        dist_thd = float(sys.argv[2])
-        f_lprs = sys.argv[3]
-        f_gps = sys.argv[4]
-        out_f = sys.argv[5]
-    res = proc_detection(camera_angle, dist_thd, f_lprs, f_gps)
-    res.to_csv(out_f, index=False)
+        view_dist_ext = int(sys.argv[2])
+        dist_thd = float(sys.argv[3])
+        f_lprs = sys.argv[4]
+        f_gps = sys.argv[5]
+        lpr_out_f = sys.argv[6]
+        traj_out_f = sys.argv[7]
+    res = proc_detection(camera_angle, view_dist_ext,
+                         dist_thd, f_lprs, traj_out_f, f_gps)
+    res.to_csv(lpr_out_f, index=False)
     print(res)

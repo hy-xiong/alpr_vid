@@ -87,7 +87,7 @@ if __name__ == "__main__":
 		veh_height = 1600.0
 		out_f_lprs = 'all_frames_lps'
 		out_dir = "tmp"
-		test_f = "test2.mp4"
+		test_f = "test7.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
