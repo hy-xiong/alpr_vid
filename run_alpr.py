@@ -143,6 +143,8 @@ if __name__ == "__main__":
 											  "%d_%dcar_lp.png" % (t, x))
 				else:
 					lp_img = ""
+				if lp_img:
+					lp_img = os.path.relpath(lp_img, root_dir)
 				fm_lps[t] = (lp_str, v_dist, lp_img)
 				print("%ds done, runtime: %.1fs, Plate: %s, dist: %.4f"
 					  % (t + t_step, time.time() - st, lp_str, v_dist))

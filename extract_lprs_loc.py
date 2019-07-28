@@ -80,7 +80,7 @@ def proc_detection(c_angle, view_extend_dist,
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        camera_angle = 360 - 60
+        camera_angle = 360 - 50
         view_dist_ext = 1
         dist_thd = 0.5
         f_lprs = 'tmp/all_frames_lps'
