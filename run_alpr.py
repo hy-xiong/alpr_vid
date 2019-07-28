@@ -87,7 +87,7 @@ if __name__ == "__main__":
 		veh_height = 1600.0
 		out_f_lprs = 'all_frames_lps'
 		out_dir = "tmp"
-		test_f = "test7.mp4"
+		test_f = "0727_4.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
@@ -99,6 +99,9 @@ if __name__ == "__main__":
 		out_f_lprs = sys.argv[8]
 		out_dir = sys.argv[9]
 		test_f = sys.argv[10]
+	root_dir = os.path.normpath(os.path.join(__file__, '../' * 2))
+	out_dir = os.path.join(root_dir, out_dir)
+	test_f = os.path.join(root_dir, test_f)
 	if os.path.exists(out_dir):
 		shutil.rmtree(out_dir)
 	os.makedirs(out_dir)

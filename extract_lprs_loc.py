@@ -1,3 +1,4 @@
+import os
 import sys
 from pyproj import Proj, transform
 import numpy as np
@@ -57,12 +58,11 @@ def proc_detection(c_angle, view_extend_dist,
     df = df[~df['license'].isna()]
     df['shift_diff'] = (df['xy_shift'] - df['xy_shift'].shift()).abs()
     df['new_car'] = df['shift_diff'] >= same_veh_dist_thd
-    df.iloc[0, 7] = True
+    df.iloc[0, 8] = True
     dup = df[df['new_car']]['license'].duplicated()
     dup_index = dup[dup].index
     df.loc[dup_index, 'new_car'] = False
     df['car_flag'] = df['new_car'].cumsum()
-    print df
     gp = df.groupby(['car_flag'])
     result = gp['time'].agg(['first', 'last'])
     result['plate'] = gp['license'].agg(lambda x: x.value_counts().index[0])
@@ -95,6 +95,11 @@ if __name__ == "__main__":
         f_gps = sys.argv[5]
         lpr_out_f = sys.argv[6]
         traj_out_f = sys.argv[7]
+    root_dir = os.path.normpath(os.path.join(__file__, '../' * 2))
+    f_lprs = os.path.join(root_dir, f_lprs)
+    f_gps = os.path.join(root_dir, f_gps)
+    lpr_out_f = os.path.join(root_dir, lpr_out_f)
+    traj_out_f = os.path.join(root_dir, traj_out_f)
     res = proc_detection(camera_angle, view_dist_ext,
                          dist_thd, f_lprs, traj_out_f, f_gps)
     res.to_csv(lpr_out_f, index=False)
