@@ -131,13 +131,22 @@ if __name__ == "__main__":
 									 lp_threshold, ocr_threshold, vehicle_net,
 									 vehicle_meta, lp_net, ocr_net, ocr_meta)
 				lp_str = validate_lp(lp_str)
-				fm_lps[t] = (lp_str, v_dist)
+				if lp_str:
+					x = 0
+					lp_img = os.path.join(out_dir, "%d_%dcar_lp.png" % (t, x))
+					while not os.path.exists(lp_img):
+						x += 1
+						lp_img = os.path.join(out_dir,
+											  "%d_%dcar_lp.png" % (t, x))
+				else:
+					lp_img = ""
+				fm_lps[t] = (lp_str, v_dist, lp_img)
 				print("%ds done, runtime: %.1fs, Plate: %s, dist: %.4f"
 					  % (t + t_step, time.time() - st, lp_str, v_dist))
 			t += t_step
 			fm = int(t * fps)
 		with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
-			wrt.write('\n'.join('%d,%s,%.4f' % (k, e[0], e[1])
+			wrt.write('\n'.join('%d,%s,%.4f,%s' % (k, e[0], e[1], e[2])
 								for k, e, in sorted(fm_lps.items(),
 													key=lambda x: x[0])))
 		print("total runtime: %.1fs" % (time.time() - st_all))

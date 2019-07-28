@@ -13,10 +13,10 @@ def extract_loc(t_array, gps_data):
 
 def proc_detection(c_angle, view_extend_dist,
                    same_veh_dist_thd, f_lpr, f_traj, f_gps):
-    # get vehical location for each image
+    # get walking trajectory
     WGS = Proj(init="epsg:4326")
     utm_11 = Proj(init="epsg:26911")
-    df = pd.read_csv(f_lpr, names=['time', 'license', 'dist'])
+    df = pd.read_csv(f_lpr, names=['time', 'license', 'dist', 'img_path'])
     df_loc = pd.read_csv(f_gps, names=['lat', 'lon'])
     xy = df_loc.apply(lambda r: transform(WGS, utm_11, r['lon'], r['lat']),
                       axis=1)
@@ -30,7 +30,13 @@ def proc_detection(c_angle, view_extend_dist,
     traj[:, [0, 1]] = traj[:, [1, 0]]
     traj = np.append(traj, ts[:, np.newaxis], axis=1)
     traj = pd.DataFrame(traj, columns=['lat', 'lon', 't_vid'])
-    traj.to_csv(f_traj, index=False)
+    # traj.to_csv(f_traj, index=False)
+    with open(f_traj, 'w') as wrt:
+        str_l = []
+        for row in traj.values:
+            str_l.append("%f,%f" % (row[1], row[0]))
+        wrt.write("%s" % ';'.join(str_l))
+    # get vehical location for each image
     unit = pos_intp[-1] - pos_intp[0]
     unit = unit[:, np.newaxis]
     unit = unit / np.linalg.norm(unit)
@@ -65,8 +71,10 @@ def proc_detection(c_angle, view_extend_dist,
     ll = result.apply(lambda r: transform(utm_11, WGS, r['x'], r['y']), axis=1)
     result['lat'] = ll.apply(lambda x: x[1])
     result['lon'] = ll.apply(lambda x: x[0])
-    result = result[['plate', 'first', 'last', 'lat', 'lon']]
-    result.columns = ['plate', 'start_vid_t', 'end_vid_t', 'lat', 'lon']
+    result['img_path'] = gp['img_path'].first()
+    result = result[['plate', 'first', 'last', 'lat', 'lon', 'img_path']]
+    result.columns = ['plate', 'start_vid_t', 'end_vid_t',
+                      'lat', 'lon', 'img_path']
     return result
 
 
