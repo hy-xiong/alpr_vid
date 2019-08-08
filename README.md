@@ -51,6 +51,8 @@ $ bash get-networks.sh
 **All input output file path will be relative to the 
 folder containing this repo**
 
+You can run either through IDE (e.g. PyCharm) or command line. 
+
 First, run `run_alpr.py` to detect license plate in each given time step
 - `time` unit is second
     - `start_time`: start time to capture video frame
