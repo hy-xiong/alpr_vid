@@ -4,6 +4,7 @@ import sys
 import shutil
 import cv2
 import numpy as np
+import pandas as pd
 from functools import wraps
 from detect import load_yolo, find_vehicle_one_img, load_lp_net, \
 	find_lp_one_img, lp_ocr_one_img
@@ -48,20 +49,24 @@ def lpr(p_img, veh_height_ratio, fl_len, sensor_h, veh_h,
 	raw_height = cv2.imread(p_img).shape[0]
 	veh_imgs, _ = find_vehicle_one_img(
 		p_img, veh_net, veh_meta, proc_dir, veh_thd)
-	lp_str = ""
-	dist = -1.0
+	lp_strs = []
+	veh_indices = []
+	dists = []
 	if veh_imgs:
-		img_heights = [cv2.imread(img).shape[0] for img in veh_imgs]
-		max_height = max(img_heights)
-		max_ratio = max_height * 1.0 / raw_height
-		if max_ratio >= veh_height_ratio:
-			veh_img = veh_imgs[img_heights.index(max_height)]
-			dist = veh_h / (max_ratio * sensor_h) * fl_len / 1000.0
+		img_heights = np.array([cv2.imread(img).shape[0] for img in veh_imgs])
+		img_h_ratios = img_heights * 1.0 / raw_height
+		indices = np.argwhere(img_h_ratios >= veh_height_ratio).flatten()
+		for i_img in indices:
+			veh_img = veh_imgs[i_img]
+			dist = veh_h / (img_h_ratios[i_img] * sensor_h) * fl_len / 1000.0
 			lp_img, _ = find_lp_one_img(veh_img, lp_net, proc_dir, lp_thd)
 			if lp_img:
-				lp_str = lp_ocr_one_img(lp_img, ocr_net, ocr_meta, ocr_thd)
+				lp_s = lp_ocr_one_img(lp_img, ocr_net, ocr_meta, ocr_thd)
+				lp_strs.append(lp_s)
+				veh_indices.append(i_img)
+				dists.append(dist)
 	print "1 image LPR runtime: %.1fs" % (time.time() - st)
-	return lp_str, dist
+	return lp_strs, dists, veh_indices
 
 
 def validate_lp(lp_s):
@@ -81,13 +86,13 @@ if __name__ == "__main__":
 		t = 0
 		t_step = 1
 		landscape = 1
-		height_ratio = 0.2
+		height_ratio = 0.4
 		focal_length = 4.44
 		sensor_height = 4.29
 		veh_height = 1600.0
-		out_f_lprs = 'all_frames_lps'
+		out_f_lprs = 'all_frames_lps.csv'
 		out_dir = "tmp"
-		test_f = "0727_4.mp4"
+		test_f = "test2.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
@@ -118,7 +123,7 @@ if __name__ == "__main__":
 		ocr_threshold = .4
 		vehicle_net, vehicle_meta, lp_net, ocr_net, ocr_meta = loadnet()
 		# clip frame and detect license plate
-		fm_lps = {}
+		fm_lps = []
 		while fm <= n_fps:
 			st = time.time()
 			vidcap.set(cv2.CAP_PROP_POS_FRAMES, fm)
@@ -128,30 +133,25 @@ if __name__ == "__main__":
 				if not landscape:
 					img = np.fliplr(np.swapaxes(img, 0, 1))
 				cv2.imwrite(fm_img, img)
-				lp_str, v_dist = lpr(fm_img, height_ratio, focal_length,
-									 sensor_height,
-									 veh_height, out_dir, vehicle_threshold,
-									 lp_threshold, ocr_threshold, vehicle_net,
-									 vehicle_meta, lp_net, ocr_net, ocr_meta)
-				lp_str = validate_lp(lp_str)
-				if lp_str:
-					x = 0
-					lp_img = os.path.join(out_dir, "%d_%dcar_lp.png" % (t, x))
-					while not os.path.exists(lp_img):
-						x += 1
-						lp_img = os.path.join(out_dir,
-											  "%d_%dcar_lp.png" % (t, x))
-				else:
-					lp_img = ""
-				if lp_img:
-					lp_img = os.path.relpath(lp_img, root_dir)
-				fm_lps[t] = (lp_str, v_dist, lp_img)
-				print("%ds done, runtime: %.1fs, Plate: %s, dist: %.4f"
-					  % (t + t_step, time.time() - st, lp_str, v_dist))
+				all_lps, all_dist, all_veh_index = lpr(
+					fm_img, height_ratio, focal_length, sensor_height,
+					veh_height, out_dir, vehicle_threshold, lp_threshold,
+					ocr_threshold, vehicle_net, vehicle_meta, lp_net,
+					ocr_net, ocr_meta)
+				print("%ds done, runtime: %.1fs" % (
+					t + t_step, time.time() - st))
+				for m in xrange(len(all_lps)):
+					lp_str = validate_lp(all_lps[m])
+					if lp_str:
+						lp_img = os.path.join(
+							out_dir, "%d_%dcar_lp.png" % (t, all_veh_index[m]))
+						lp_img = os.path.relpath(lp_img, root_dir)
+						fm_lps.append([t, lp_str, all_dist[m], lp_img])
+						print("Plate: %s, dist: %.4f, plate_img: %s" % (
+							lp_str, all_dist[m], lp_img))
 			t += t_step
 			fm = int(t * fps)
-		with open("%s/%s" % (out_dir, out_f_lprs), 'w') as wrt:
-			wrt.write('\n'.join('%d,%s,%.4f,%s' % (k, e[0], e[1], e[2])
-								for k, e, in sorted(fm_lps.items(),
-													key=lambda x: x[0])))
+		out_csv = "%s/%s" % (out_dir, out_f_lprs)
+		df = pd.DataFrame(fm_lps, columns=['time', 'plate', 'dist', 'img'])
+		df.to_csv(out_csv, index=False)
 		print("total runtime: %.1fs" % (time.time() - st_all))
