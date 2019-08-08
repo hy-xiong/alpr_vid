@@ -48,7 +48,8 @@ $ bash get-networks.sh
 ```
 
 ## Run
-**All path will be assumed relative to the folder containing this repo**
+**All input output file path will be relative to the 
+folder containing this repo**
 
 First, run `run_alpr.py` to detect license plate in each given time step
 - `time` unit is second
