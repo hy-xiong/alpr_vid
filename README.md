@@ -10,18 +10,16 @@ Their work addresses the low performance issue
 of other open source ALPR (e.g. openALPR) 
 when license plate image is not in front view.
 
-This repo uses their work to extract license plates from 
-patrolling video and detect license plates of all parking vehicles. 
-It gives valid US license plate number along with the video time 
-when the plate appear and disappear.
+This repo is the core AI submodule of our 
+["illegal parking detection system"](https://devpost.com/software/cvparking) project.
+It extract license plate numbers from 
+patrolling video and estimates all vehicles geographic coordinates. 
 
-It can also estimate the parked vehicle locations given 
-video camera specs.
 
 ## Requirements
 
 Environment
-- Linux (Ubuntu 16.04)
+- Linux (tested on Ubuntu 16.04)
 - Python 2.7
 
 Dependencies:
@@ -64,11 +62,14 @@ for license plate detection.
 - `focal_length`: focal length of video camera (mm)
 - `sensor_height`: video camera sensor height (mm)
 - `veh_height`: a constant vehicle height for distance estimation (mm)
-- `out_f`:  name of output file contains detected plate number and 
+- `out_f_lprs`:  name of output file contains detected plate number and 
 vehicle distance at each video `time`
-- `out_dir`: path of folder to store all processed output 
+- `out_dir`: relative path of folder to store all processed output 
 and `out_f_lprs`. 
-- `video`: video file path
+- `test_f`: input video file relative path
+
+Note: `out_dir`, `test_f` must be relative to the parent 
+directory of this repo.
 
 ```shellscript
 $ start_time=0
@@ -82,28 +83,32 @@ $ out_f="all_frames_lps.csv"
 $ out_dir="tmp"
 $ test_f="test.mp4"
 $ python src/run_alpr.py $start_time $time_step $landscape $height_ratio \
-$  $focal_length $sensor_height $veh_height $out_f $out_dir $video
+$  $focal_length $sensor_height $veh_height $out_f_lprs $out_dir $test_f
 ```
 
 Second, run `extract_lprs.py` to extract valid video license plates along with 
 its time of appearing and disappearing, as well as the vehicle location in 
 lat and lon.
 
-- `camera_angle`: the counter-clockwise angle of camera angle from patrolling 
-trajectory
+- `camera_angle`: the counter-clockwise angle from 
+camera moving trajectory to camera view sight line in degree 
 - `view_dist_ext`: a small distance offset from back of car to center
-- `char_sim`: for a few noisy plate number 
-(e.g. distance is too far to be detected correctly), 
-if its similarity with frequent detected plate number is higher than this value, 
-then it will be updated to the most similar one.
-- `f_lprs`: path to output file from `run_alpr.py` containing 
+- `char_sim`: minimum similarity threshold for two plate numbers 
+to be similar to each other. For each plate number, 
+the most similar other one is assumed to be referring to a same vehicle.
+This parameter is used to reduce false positive of plate number 
+recognition.
+- `f_lprs`: relative path to output file from `run_alpr.py` containing 
 license plate and vehicle distance at each video time
-- `f_gps`: path to patrol gps, 
-currently only accept start and end points, asusming straight line, 
-for demo purpose
-- `lpr_out_f`: path of output file containing 
+- `f_gps`: relative path to patrol gps, 
+currently only accept start and end points, asusming straight line
+between samples
+- `lpr_out_f`: relative path of output file containing 
 the summarized valid plate number and estimate vehicle location
-- `traj_out_f`: path of output file containg interpolated patrol trajectory
+- `traj_out_f`: relative path of output file containg interpolated patrol trajectory
+
+Note: `f_lprs`, `f_gps`, `lpr_out_f`, `traj_out_f` must be relative to 
+the parent directory of this repo.
 
 ```shellscript
 $ camera_angle=70
