@@ -91,8 +91,8 @@ if __name__ == "__main__":
 		sensor_height = 4.29
 		veh_height = 1600.0
 		out_f_lprs = 'all_frames_lps.csv'
-		out_dir = "tmp"
-		test_f = "test2.mp4"
+		out_dir = "tmp2"
+		test_f = "test3.mp4"
 	else:
 		t = int(sys.argv[1])
 		t_step = int(sys.argv[2])
@@ -104,13 +104,16 @@ if __name__ == "__main__":
 		out_f_lprs = sys.argv[8]
 		out_dir = sys.argv[9]
 		test_f = sys.argv[10]
+
 	root_dir = os.path.normpath(os.path.join(__file__, '../' * 2))
 	out_dir = os.path.join(root_dir, out_dir)
 	test_f = os.path.join(root_dir, test_f)
+
 	if os.path.exists(out_dir):
 		shutil.rmtree(out_dir)
 	os.makedirs(out_dir)
 	st_all = time.time()
+
 	if os.path.exists(test_f):
 		# read video
 		vidcap = cv2.VideoCapture(test_f)

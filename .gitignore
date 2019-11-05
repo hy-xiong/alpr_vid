@@ -3,6 +3,7 @@
 /tmp
 gps
 test*
+errplot.py
 
 *.pyc
 *.csv
